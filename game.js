@@ -34,7 +34,7 @@ let movingSpeed = 30;
 window.onload = init;
 
 function init(){
-    // Get a reference to the canvas
+    // Get a reference to the canvas 
     canvas = document.getElementById('canvas');
     context = canvas.getContext('2d');
 
