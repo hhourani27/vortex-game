@@ -23,14 +23,17 @@ const settings = {
 }
 
 const state = {
+  status: 'INIT',
   player: {
     distanceFromCenter_pc: settings.player.startingDistance_pc,
     degree: settings.player.starting_degree,
   },
   keyPressed: {
-    space: false
+    space: false,
+    p: false
   },
-  trail: []
+  trail: [],
+  collision: false,
 }
 
 let secondsPassed = 0;
@@ -56,6 +59,9 @@ function setupEvents() {
       case ' ':
         state.keyPressed.space = true
         break;
+      case 'p':
+      case 'P':
+        state.keyPressed.p = true;
       default:
         break;
     }
@@ -86,8 +92,38 @@ function gameLoop(timeStamp) {
 
 /* #region UPDATE FUNCTIONS */
 function update(secondsPassed, timeStamp) {
-  updatePlayerPosition(secondsPassed);
-  updateTrail(secondsPassed, timeStamp);
+  updateStatus();
+  if (state.status === 'RUN') {
+    updatePlayerPosition(secondsPassed);
+    updateTrail(timeStamp);
+    updateCollision();
+  }
+}
+
+function updateStatus() {
+  if (state.status === 'INIT') {
+    if (state.keyPressed.space) {
+      state.status = 'RUN'
+    }
+  }
+  else if (state.status === 'RUN') {
+    if (state.keyPressed.p) {
+      state.status = 'PAUSE';
+      state.keyPressed.p = false;
+    }
+    if (state.collision) {
+      state.status = 'LOST';
+    }
+  }
+  else if (state.status === 'PAUSE') {
+    if (state.keyPressed.p) {
+      state.status = 'RUN';
+      state.keyPressed.p = false;
+    }
+    else if (state.keyPressed.space) {
+      state.status = 'RUN';
+    }
+  }
 }
 
 function updatePlayerPosition(secondsPassed) {
@@ -118,14 +154,37 @@ function getUpdatedPlayerAngle(secondsPassed, mode) {
   }
 }
 
-function updateTrail(secondsPassed, timeStamp) {
+function updateTrail(timeStamp) {
   if (timeStamp - lastTrailTimeStamp > settings.trail.frequency * 1000) {
     state.trail.push({
       distanceFromCenter_pc: state.player.distanceFromCenter_pc,
-      degree: state.player.degree
+      degree: state.player.degree,
+      status: 'NEW'
     })
     lastTrailTimeStamp = timeStamp
   }
+
+  const newTrails = state.trail.filter(tr => tr.status === 'NEW');
+  const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
+  newTrails.forEach(tr => {
+    const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
+    if (distance(playerX, playerY, trX, trY) > settings.player.radius * 2) {
+      tr.status = 'OBSTACLE'
+    }
+  })
+}
+
+function updateCollision() {
+  const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
+  const obstacles = state.trail.filter(tr => tr.status === 'OBSTACLE');
+  obstacles.some(tr => {
+    const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
+    if (distance(playerX, playerY, trX, trY) <= settings.player.radius * 2) {
+      state.collision = true;
+      return true;
+    }
+  })
+
 }
 
 /* #endregion */
@@ -138,6 +197,7 @@ function draw() {
   drawCenterCircle();
   drawTrail();
   drawPlayer();
+  drawState();
 }
 
 function drawBackground() {
@@ -206,6 +266,13 @@ function drawCircle(x, y, radius, color) {
   context.fill();
 }
 
+function drawState() {
+  context.fillStyle = 'black'
+  context.font = '10px serif';
+  const s = JSON.stringify(state, null, 2);
+  document.getElementById('state').innerHTML = s
+}
+
 /* #endregion */
 
 /* #region UTIL FUNCTIONS */
@@ -246,7 +313,7 @@ function polarToCartesian(radius, degree) {
 }
 
 function distance(x1, y1, x2, y2) {
-  return Math.sqrt(Math.pow(X2 - X1, 2) + Math.pow(y2 - y1, 2))
+  return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
 }
 
 function degreeToRadian(degree) {
