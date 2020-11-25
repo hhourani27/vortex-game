@@ -15,10 +15,17 @@ const settings = {
     startingDistance_pc: 50,
     starting_degree: 0,
     radius: 10,
-    velocity: 20
+    velocity: 20,
+    degreeIncrease: 0.5,
+    degreeDecrease: 0.25
   },
   trail: {
     frequency: 0.25,
+  },
+  bomb: {
+    frequency: 1,
+    radius: 5,
+    explosionRadius: 100
   }
 }
 
@@ -32,13 +39,15 @@ const state = {
     space: false,
     p: false
   },
-  trail: [],
   collision: false,
+  bombs: [],
+  trail: [],
 }
 
 let secondsPassed = 0;
 let oldTimeStamp = 0;
 let lastTrailTimeStamp = 0;
+let lastBombTimeStamp = 0;
 
 
 window.onload = init;
@@ -96,7 +105,9 @@ function update(secondsPassed, timeStamp) {
   if (state.status === 'RUN') {
     updatePlayerPosition(secondsPassed);
     updateTrail(timeStamp);
-    updateCollision();
+    updateTrailCollision();
+    updateBomb(timeStamp);
+    updateBombCollision();
   }
 }
 
@@ -131,9 +142,9 @@ function updatePlayerPosition(secondsPassed) {
   state.player.degree = getUpdatedPlayerAngle(secondsPassed, 'SAME_VELOCITY')
 
   // Move radius
-  state.player.distanceFromCenter_pc -= 0.2;
+  state.player.distanceFromCenter_pc -= settings.player.degreeDecrease;
   if (state.keyPressed.space) {
-    state.player.distanceFromCenter_pc += 0.5;
+    state.player.distanceFromCenter_pc += settings.player.degreeIncrease;
   }
 
   /// Center and field bounding
@@ -174,7 +185,7 @@ function updateTrail(timeStamp) {
   })
 }
 
-function updateCollision() {
+function updateTrailCollision() {
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
   const obstacles = state.trail.filter(tr => tr.status === 'OBSTACLE');
   obstacles.some(tr => {
@@ -187,6 +198,46 @@ function updateCollision() {
 
 }
 
+function updateBomb(timeStamp) {
+  if (timeStamp - lastBombTimeStamp > settings.bomb.frequency * 1000) {
+    const bombDistance = Math.random() * (settings.field.radius_pc - settings.center.radius_pc) + settings.center.radius_pc
+    const bombDegree = Math.random() * 360
+    state.bombs.push({
+      distanceFromCenter_pc: bombDistance,
+      degree: bombDegree,
+      state: 'NEW'
+    })
+    lastBombTimeStamp = timeStamp
+  }
+
+}
+
+function updateBombCollision() {
+  // Detect bomb collisions
+  const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
+  state.bombs.some(bomb => {
+    const [bombX, bombY] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
+    if (distance(playerX, playerY, bombX, bombY) <= settings.player.radius + settings.bomb.radius) {
+      bomb.status = 'EXPLODED';
+
+      //Destroy trails
+      state.trail.forEach(tr => {
+        const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
+        if (distance(trX, trY, bombX, bombY) <= settings.bomb.explosionRadius) {
+          tr.status = 'DESTROYED'
+        }
+      })
+    }
+  })
+
+  //Remove destroyed trails
+  state.trail = state.trail.filter(tr => tr.status != 'DESTROYED');
+
+  //Remove bomb
+  state.bombs = state.bombs.filter(bomb => bomb.status != 'EXPLODED');
+}
+
+
 /* #endregion */
 
 /* #region DRAWING FUNCTIONS */
@@ -196,6 +247,7 @@ function draw() {
   drawFieldCircle();
   drawCenterCircle();
   drawTrail();
+  drawBombs();
   drawPlayer();
   drawState();
 }
@@ -232,10 +284,19 @@ function drawPlayer() {
 
 function drawTrail() {
   const color = tinycolor(settings.color).lighten(20).toHexString()
-  state.trail.forEach(square => {
-    const [x, y] = polarPercentToCartesian(square.distanceFromCenter_pc, square.degree);
+  state.trail.forEach(tr => {
+    const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
     const radius = settings.player.radius;
-    drawSquare(x, y, radius, square.degree, color)
+    drawSquare(x, y, radius, tr.degree, color)
+  })
+}
+
+function drawBombs() {
+  const color = 'white';
+  state.bombs.forEach(bomb => {
+    const [x, y] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
+    const radius = settings.bomb.radius;
+    drawCircle(x, y, radius, color);
   })
 }
 
