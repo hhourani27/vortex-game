@@ -5,30 +5,37 @@ let context;
 const settings = {
   color: '#FFBD71',
   center: {
-    radius_pc: 15,
+    radius_pc: 20,
     darker: 25
   },
   field: {
     radius_pc: 90
   },
   player: {
+    startingDistance_pc: 50,
+    starting_degree: 0,
     radius: 10,
     velocity: 20
+  },
+  trail: {
+    frequency: 0.25,
   }
 }
 
 const state = {
   player: {
-    distanceFromCenter_pc: 50,
-    degree: 0
+    distanceFromCenter_pc: settings.player.startingDistance_pc,
+    degree: settings.player.starting_degree,
   },
   keyPressed: {
     space: false
-  }
+  },
+  trail: []
 }
 
 let secondsPassed = 0;
 let oldTimeStamp = 0;
+let lastTrailTimeStamp = 0;
 
 
 window.onload = init;
@@ -72,14 +79,15 @@ function gameLoop(timeStamp) {
   secondsPassed = (timeStamp - oldTimeStamp) / 1000;
   oldTimeStamp = timeStamp;
 
-  update(secondsPassed);
+  update(secondsPassed, timeStamp);
   draw();
   window.requestAnimationFrame(gameLoop);
 }
 
 /* #region UPDATE FUNCTIONS */
-function update(secondsPassed) {
+function update(secondsPassed, timeStamp) {
   updatePlayerPosition(secondsPassed);
+  updateTrail(secondsPassed, timeStamp);
 }
 
 function updatePlayerPosition(secondsPassed) {
@@ -110,6 +118,16 @@ function getUpdatedPlayerAngle(secondsPassed, mode) {
   }
 }
 
+function updateTrail(secondsPassed, timeStamp) {
+  if (timeStamp - lastTrailTimeStamp > settings.trail.frequency * 1000) {
+    state.trail.push({
+      distanceFromCenter_pc: state.player.distanceFromCenter_pc,
+      degree: state.player.degree
+    })
+    lastTrailTimeStamp = timeStamp
+  }
+}
+
 /* #endregion */
 
 /* #region DRAWING FUNCTIONS */
@@ -118,6 +136,7 @@ function draw() {
   drawBackground();
   drawFieldCircle();
   drawCenterCircle();
+  drawTrail();
   drawPlayer();
 }
 
@@ -130,30 +149,42 @@ function drawFieldCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(settings.field.radius_pc);
 
-  context.beginPath();
-  context.arc(x, y, radius, 0, 2 * Math.PI, false);
-  context.fillStyle = settings.color;
-  context.fill();
+  drawCircle(x, y, radius, settings.color)
 }
 
 function drawCenterCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(settings.center.radius_pc);
+  const color = tinycolor(settings.color).darken(settings.center.darker).toHexString()
 
-  context.beginPath();
-  context.arc(x, y, radius, 0, 2 * Math.PI, false);
-  context.fillStyle = tinycolor(settings.color).darken(settings.center.darker).toHexString();
-  context.fill();
+  drawCircle(x, y, radius, color)
+
 }
 
 function drawPlayer() {
   const radius = settings.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
+  const degree = state.player.degree;
+  const color = tinycolor(settings.color).lighten(10).toHexString()
+  drawSquare(playerX, playerY, radius, degree, color);
+
+}
+
+function drawTrail() {
+  const color = tinycolor(settings.color).lighten(20).toHexString()
+  state.trail.forEach(square => {
+    const [x, y] = polarPercentToCartesian(square.distanceFromCenter_pc, square.degree);
+    const radius = settings.player.radius;
+    drawSquare(x, y, radius, square.degree, color)
+  })
+}
+
+function drawSquare(x, y, radius, rotation, color) {
   const cornerRadius = 2;
 
   context.save();
-  context.translate(playerX, playerY)
-  context.rotate(degreeToRadian(state.player.degree))
+  context.translate(x, y)
+  context.rotate(degreeToRadian(rotation))
 
   context.beginPath();
   //  context.moveTo(cornerRadius, 0);
@@ -162,10 +193,17 @@ function drawPlayer() {
   context.arcTo(-radius, radius, -radius, -radius, cornerRadius);
   context.arcTo(-radius, -radius, radius, -radius, cornerRadius);
   context.closePath();
-  context.fillStyle = tinycolor(settings.color).lighten(10).toHexString();
+  context.fillStyle = color;
   context.fill();
 
   context.restore();
+}
+
+function drawCircle(x, y, radius, color) {
+  context.beginPath();
+  context.arc(x, y, radius, 0, 2 * Math.PI, false);
+  context.fillStyle = color;
+  context.fill();
 }
 
 /* #endregion */
@@ -207,6 +245,9 @@ function polarToCartesian(radius, degree) {
   return [x, y];
 }
 
+function distance(x1, y1, x2, y2) {
+  return Math.sqrt(Math.pow(X2 - X1, 2) + Math.pow(y2 - y1, 2))
+}
 
 function degreeToRadian(degree) {
   return degree * Math.PI / 180;
