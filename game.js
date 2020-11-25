@@ -5,21 +5,22 @@ let context;
 const settings = {
   color: '#FFBD71',
   center: {
-    diameterpc: 15,
+    radius_pc: 15,
     darker: 25
   },
-  outer: {
-    diameterpc: 90
+  field: {
+    radius_pc: 90
   },
   player: {
-    size: 20
+    radius: 10,
+    velocity: 20
   }
 }
 
 const state = {
   player: {
-    distanceFromCenterpc: 50,
-    degree: 270
+    distanceFromCenter_pc: 50,
+    degree: 0
   },
   keyPressed: {
     space: false
@@ -28,7 +29,6 @@ const state = {
 
 let secondsPassed = 0;
 let oldTimeStamp = 0;
-let movingSpeed = 30;
 
 
 window.onload = init;
@@ -77,33 +77,42 @@ function gameLoop(timeStamp) {
   window.requestAnimationFrame(gameLoop);
 }
 
+/* #region UPDATE FUNCTIONS */
 function update(secondsPassed) {
-  updatePlayerPosition
+  updatePlayerPosition(secondsPassed);
 }
 
-function updatePlayerPosition1(secondsPassed) {
-  state.player.degree = (state.player.degree + (movingSpeed * secondsPassed)) % 360
+function updatePlayerPosition(secondsPassed) {
+  // Move angle
+  state.player.degree = getUpdatedPlayerAngle(secondsPassed, 'SAME_VELOCITY')
 
-  state.player.distanceFromCenterpc -= 0.2;
+  // Move radius
+  state.player.distanceFromCenter_pc -= 0.2;
   if (state.keyPressed.space) {
-    state.player.distanceFromCenterpc += 0.3;
+    state.player.distanceFromCenter_pc += 0.5;
   }
-  if (state.player.distanceFromCenterpc <= settings.center.diameterpc) {
-    state.player.distanceFromCenterpc = settings.center.diameterpc;
+
+  /// Center and field bounding
+  if (state.player.distanceFromCenter_pc <= getLowestPlayerDistanceFromCenter_pc()) {
+    state.player.distanceFromCenter_pc = getLowestPlayerDistanceFromCenter_pc();
+  }
+  if (state.player.distanceFromCenter_pc >= getHighestPlayerDistanceFromCenter_pc()) {
+    state.player.distanceFromCenter_pc = getHighestPlayerDistanceFromCenter_pc();
   }
 }
 
-function updatePlayerPosition2(secondsPassed) {
-  state.player.degree = (state.player.degree + (movingSpeed * secondsPassed)) % 360
-
-  state.player.distanceFromCenterpc -= 0.2;
-  if (state.keyPressed.space) {
-    state.player.distanceFromCenterpc += 0.3;
+function getUpdatedPlayerAngle(secondsPassed, mode) {
+  if (mode === 'SAME_VELOCITY') {
+    return (state.player.degree + ((settings.player.velocity * secondsPassed) / (state.player.distanceFromCenter_pc / 100))) % 360
   }
-  if (state.player.distanceFromCenterpc <= settings.center.diameterpc) {
-    state.player.distanceFromCenterpc = settings.center.diameterpc;
+  else if (mode === 'SAME_D_ANGLE') {
+    return (state.player.degree + (settings.player.velocity * secondsPassed)) % 360
   }
 }
+
+/* #endregion */
+
+/* #region DRAWING FUNCTIONS */
 
 function draw() {
   drawBackground();
@@ -118,9 +127,8 @@ function drawBackground() {
 }
 
 function drawFieldCircle() {
-  const x = canvas.width / 2;
-  const y = canvas.height / 2;
-  const radius = canvas.width * settings.outer.diameterpc / 100 / 2;
+  const [x, y] = getCenter()
+  const radius = percentCanvasToPixelSize(settings.field.radius_pc);
 
   context.beginPath();
   context.arc(x, y, radius, 0, 2 * Math.PI, false);
@@ -129,9 +137,8 @@ function drawFieldCircle() {
 }
 
 function drawCenterCircle() {
-  const x = canvas.width / 2;
-  const y = canvas.height / 2;
-  const radius = canvas.width * settings.center.diameterpc / 100 / 2;
+  const [x, y] = getCenter()
+  const radius = percentCanvasToPixelSize(settings.center.radius_pc);
 
   context.beginPath();
   context.arc(x, y, radius, 0, 2 * Math.PI, false);
@@ -140,33 +147,73 @@ function drawCenterCircle() {
 }
 
 function drawPlayer() {
-  const size = settings.player.size;
-  let x = (state.player.distanceFromCenterpc * canvas.width / 2 / 100) * Math.cos(degreeToRadian(state.player.degree)) + (canvas.width / 2) - size / 2;
-  let y = (state.player.distanceFromCenterpc * canvas.width / 2 / 100) * Math.sin(degreeToRadian(state.player.degree)) + (canvas.height / 2) - size / 2;
-  const r = 2;
+  const radius = settings.player.radius;
+  const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
+  const cornerRadius = 2;
 
   context.save();
-  context.translate(x, y)
+  context.translate(playerX, playerY)
   context.rotate(degreeToRadian(state.player.degree))
+
   context.beginPath();
-  /*
-    context.moveTo(x+r, y);
-    context.arcTo(x+size, y,   x+size, y+size, r);
-    context.arcTo(x+size, y+size, x,   y+size, r);
-    context.arcTo(x,   y+size, x,   y,   r);
-    context.arcTo(x,   y,   x+size, y,   r);
-    */
-  context.moveTo(r, 0);
-  context.arcTo(size, 0, size, size, r);
-  context.arcTo(size, size, 0, size, r);
-  context.arcTo(0, size, 0, 0, r);
-  context.arcTo(0, 0, size, 0, r);
+  //  context.moveTo(cornerRadius, 0);
+  context.arcTo(radius, -radius, radius, radius, cornerRadius);
+  context.arcTo(radius, radius, -radius, radius, cornerRadius);
+  context.arcTo(-radius, radius, -radius, -radius, cornerRadius);
+  context.arcTo(-radius, -radius, radius, -radius, cornerRadius);
   context.closePath();
   context.fillStyle = tinycolor(settings.color).lighten(10).toHexString();
   context.fill();
+
   context.restore();
 }
+
+/* #endregion */
+
+/* #region UTIL FUNCTIONS */
+
+function getCenter() {
+  return [canvas.width / 2, canvas.height / 2]
+}
+
+function percentCanvasToPixelSize(percentFromCenter) {
+  return percentFromCenter / 100 * canvas.width / 2
+}
+
+function getLowestPlayerDistanceFromCenter_pc() {
+  return settings.center.radius_pc + (settings.player.radius / (canvas.width / 2) * 100)
+}
+
+function getHighestPlayerDistanceFromCenter_pc() {
+  return settings.field.radius_pc - (settings.player.radius / (canvas.width / 2) * 100)
+}
+
+
+function polarPercentToCartesian(percentFromCenter, degree) {
+  const [x, y] = polarToCartesian(percentCanvasToPixelSize(percentFromCenter), degree)
+  const [centerX, centerY] = getCenter()
+  return [x + centerX, y + centerY]
+}
+
+function cartesianToPolarPercent(x, y) {
+  const r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+  const degree = radianToDegree(Math.atan(y / x));
+  return [r, degree];
+}
+
+function polarToCartesian(radius, degree) {
+  const x = radius * Math.cos(degreeToRadian(degree));
+  const y = radius * Math.sin(degreeToRadian(degree));
+  return [x, y];
+}
+
 
 function degreeToRadian(degree) {
   return degree * Math.PI / 180;
 }
+
+function radianToDegree(radian) {
+  return radian * 180 / Math.PI
+}
+
+/* #endregion */
