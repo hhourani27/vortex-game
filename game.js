@@ -7,6 +7,18 @@ const config = {
     {
       name: 'yellow',
       color: '#FFBD71'
+    },
+    {
+      name: 'red',
+      color: '#A43741'
+    },
+    {
+      name: 'green',
+      color: '#328A2E'
+    },
+    {
+      name: 'blue',
+      color: '#2D4571'
     }
   ],
   center: {
@@ -32,12 +44,12 @@ const config = {
     radius: 5,
     explosionRadius: 100
   },
-  maxTurn: 3
+  maxTurn: 2
 }
 
 const state = {
   status: 'INIT',
-  initialColor: 'yellow',
+  color: 'yellow',
   turn: 1,
   player: {
     distanceFromCenter_pc: config.player.startingDistance_pc,
@@ -112,6 +124,7 @@ function update(secondsPassed, timeStamp) {
   updateStatus();
   if (state.status === 'RUN') {
     updatePlayerPositionAndTurn(secondsPassed);
+    updateColor();
     updateTrail(timeStamp);
     updateTrailCollision();
     updateBomb(timeStamp);
@@ -176,16 +189,29 @@ function getUpdatedPlayerAngle(secondsPassed, mode) {
   }
 }
 
+function updateColor() {
+  if (state.turn > config.maxTurn) {
+    const availableColor = config.colors.filter(c => c.name != state.color);
+    const newColor = availableColor[Math.floor(Math.random() * availableColor.length)]
+    state.color = newColor.name;
+
+    state.turn = 1;
+  }
+}
+
 function updateTrail(timeStamp) {
+  // Create a new Trail if the player moved enough distance
   if (timeStamp - lastTrailTimeStamp > config.trail.frequency * 1000) {
     state.trail.push({
       distanceFromCenter_pc: state.player.distanceFromCenter_pc,
       degree: state.player.degree,
+      color: state.color,
       status: 'NEW'
     })
     lastTrailTimeStamp = timeStamp
   }
 
+  // When a player got far enough of a new Trail, it becomes an obstacle
   const newTrails = state.trail.filter(tr => tr.status === 'NEW');
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
   newTrails.forEach(tr => {
@@ -199,7 +225,8 @@ function updateTrail(timeStamp) {
 function updateTrailCollision() {
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
   const obstacles = state.trail.filter(tr => tr.status === 'OBSTACLE');
-  obstacles.some(tr => {
+  const obstaclesSameColor = obstacles.filter(tr => tr.color === state.color);
+  obstaclesSameColor.some(tr => {
     const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
     if (distance(playerX, playerY, trX, trY) <= config.player.radius * 2) {
       state.collision = true;
@@ -270,8 +297,7 @@ function draw() {
 }
 
 function drawBackground() {
-  const initialColor = getCurrentColor()
-  const color = tinycolor(initialColor).lighten(config.center.darker).toHexString()
+  const color = tinycolor(getColorValue(state.color)).lighten(config.center.darker).toHexString()
 
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -280,7 +306,7 @@ function drawBackground() {
 function drawFieldCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.field.radius_pc);
-  const color = getCurrentColor()
+  const color = getColorValue(state.color)
 
   drawCircle(x, y, radius, color)
 }
@@ -288,8 +314,7 @@ function drawFieldCircle() {
 function drawCenterCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.center.radius_pc);
-  const initialColor = getCurrentColor()
-  const color = tinycolor(initialColor).darken(config.center.darker).toHexString()
+  const color = tinycolor(getColorValue(state.color)).darken(config.center.darker).toHexString()
 
   drawCircle(x, y, radius, color)
 
@@ -306,18 +331,26 @@ function drawPlayer() {
   const radius = config.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
   const degree = state.player.degree;
-  const initialColor = getCurrentColor()
-  const color = tinycolor(initialColor).lighten(10).toHexString()
+  const color = tinycolor(getColorValue(state.color)).lighten(10).toHexString()
   drawSquare(playerX, playerY, radius, degree, color);
 
 }
 
 function drawTrail() {
-  const initialColor = getCurrentColor()
-  const color = tinycolor(initialColor).lighten(20).toHexString()
+  const color = tinycolor(getColorValue(state.color)).lighten(20).toHexString()
+
   state.trail.forEach(tr => {
     const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
     const radius = config.player.radius;
+
+    let color = null;
+    if (tr.color === state.color) {
+      color = tinycolor(getColorValue(tr.color)).lighten(20).toHexString()
+    }
+    else {
+      color = tinycolor(getColorValue(tr.color)).lighten(10).desaturate(20).toHexString()
+    }
+
     drawSquare(x, y, radius, tr.degree, color)
   })
 }
@@ -416,9 +449,8 @@ function radianToDegree(radian) {
   return radian * 180 / Math.PI
 }
 
-function getCurrentColor() {
-  const initialColorName = state.initialColor;
-  const color = config.colors.filter(c => c.name === initialColorName)[0];
+function getColorValue(colorName) {
+  const color = config.colors.filter(c => c.name === colorName)[0];
   return color.color;
 }
 
