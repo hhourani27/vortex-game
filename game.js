@@ -3,7 +3,12 @@ let canvas;
 let context;
 
 const settings = {
-  color: '#FFBD71',
+  colors: [
+    {
+      name: 'yellow',
+      color: '#FFBD71'
+    }
+  ],
   center: {
     radius_pc: 20,
     darker: 25
@@ -26,11 +31,14 @@ const settings = {
     frequency: 1,
     radius: 5,
     explosionRadius: 100
-  }
+  },
+  maxTurn: 3
 }
 
 const state = {
   status: 'INIT',
+  initialColor: 'yellow',
+  turn: 1,
   player: {
     distanceFromCenter_pc: settings.player.startingDistance_pc,
     degree: settings.player.starting_degree,
@@ -103,7 +111,7 @@ function gameLoop(timeStamp) {
 function update(secondsPassed, timeStamp) {
   updateStatus();
   if (state.status === 'RUN') {
-    updatePlayerPosition(secondsPassed);
+    updatePlayerPositionAndTurn(secondsPassed);
     updateTrail(timeStamp);
     updateTrailCollision();
     updateBomb(timeStamp);
@@ -137,9 +145,12 @@ function updateStatus() {
   }
 }
 
-function updatePlayerPosition(secondsPassed) {
-  // Move angle
-  state.player.degree = getUpdatedPlayerAngle(secondsPassed, 'SAME_VELOCITY')
+function updatePlayerPositionAndTurn(secondsPassed) {
+  // Move angle and update turn
+  const updatedDegree = getUpdatedPlayerAngle(secondsPassed, 'SAME_VELOCITY')
+  if (state.player.degree > updatedDegree)
+    state.turn += 1
+  state.player.degree = updatedDegree
 
   // Move radius
   state.player.distanceFromCenter_pc -= settings.player.degreeDecrease;
@@ -259,23 +270,35 @@ function draw() {
 }
 
 function drawBackground() {
-  context.fillStyle = tinycolor(settings.color).lighten(settings.center.darker).toHexString();
+  const initialColor = getCurrentColor()
+  const color = tinycolor(initialColor).lighten(settings.center.darker).toHexString()
+
+  context.fillStyle = color;
   context.fillRect(0, 0, canvas.width, canvas.height)
 }
 
 function drawFieldCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(settings.field.radius_pc);
+  const color = getCurrentColor()
 
-  drawCircle(x, y, radius, settings.color)
+  drawCircle(x, y, radius, color)
 }
 
 function drawCenterCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(settings.center.radius_pc);
-  const color = tinycolor(settings.color).darken(settings.center.darker).toHexString()
+  const initialColor = getCurrentColor()
+  const color = tinycolor(initialColor).darken(settings.center.darker).toHexString()
 
   drawCircle(x, y, radius, color)
+
+  //Draw text
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.font = '48px sans-serif';
+  context.fillStyle = 'white';
+  context.fillText(state.turn, x, y);
 
 }
 
@@ -283,13 +306,15 @@ function drawPlayer() {
   const radius = settings.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
   const degree = state.player.degree;
-  const color = tinycolor(settings.color).lighten(10).toHexString()
+  const initialColor = getCurrentColor()
+  const color = tinycolor(initialColor).lighten(10).toHexString()
   drawSquare(playerX, playerY, radius, degree, color);
 
 }
 
 function drawTrail() {
-  const color = tinycolor(settings.color).lighten(20).toHexString()
+  const initialColor = getCurrentColor()
+  const color = tinycolor(initialColor).lighten(20).toHexString()
   state.trail.forEach(tr => {
     const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
     const radius = settings.player.radius;
@@ -389,6 +414,12 @@ function degreeToRadian(degree) {
 
 function radianToDegree(radian) {
   return radian * 180 / Math.PI
+}
+
+function getCurrentColor() {
+  const initialColorName = state.initialColor;
+  const color = settings.colors.filter(c => c.name === initialColorName)[0];
+  return color.color;
 }
 
 /* #endregion */
