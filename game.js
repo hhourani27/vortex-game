@@ -17,7 +17,7 @@ const settings = {
     radius: 10,
     velocity: 20,
     degreeIncrease: 0.5,
-    degreeDecrease: 0.25
+    degreeDecrease: 0.3
   },
   trail: {
     frequency: 0.25,
@@ -200,7 +200,13 @@ function updateTrailCollision() {
 
 function updateBomb(timeStamp) {
   if (timeStamp - lastBombTimeStamp > settings.bomb.frequency * 1000) {
-    const bombDistance = Math.random() * (settings.field.radius_pc - settings.center.radius_pc) + settings.center.radius_pc
+    const fieldRadius = settings.field.radius_pc;
+    const centerRadius = settings.center.radius_pc;
+    const bombRadius = settings.bomb.radius / (canvas.width / 2);
+    const max = fieldRadius - bombRadius;
+    const min = centerRadius + bombRadius
+
+    const bombDistance = Math.random() * (max - min) + min
     const bombDegree = Math.random() * 360
     state.bombs.push({
       distanceFromCenter_pc: bombDistance,
