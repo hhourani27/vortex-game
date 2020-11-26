@@ -1,8 +1,8 @@
 "use strict";
 let canvas;
-let context;
+let ctx;
 
-const settings = {
+const config = {
   colors: [
     {
       name: 'yellow',
@@ -40,8 +40,8 @@ const state = {
   initialColor: 'yellow',
   turn: 1,
   player: {
-    distanceFromCenter_pc: settings.player.startingDistance_pc,
-    degree: settings.player.starting_degree,
+    distanceFromCenter_pc: config.player.startingDistance_pc,
+    degree: config.player.starting_degree,
   },
   keyPressed: {
     space: false,
@@ -63,7 +63,7 @@ window.onload = init;
 function init() {
   // Get a reference to the canvas 
   canvas = document.getElementById('canvas');
-  context = canvas.getContext('2d');
+  ctx = canvas.getContext('2d');
 
   setupEvents();
 
@@ -153,9 +153,9 @@ function updatePlayerPositionAndTurn(secondsPassed) {
   state.player.degree = updatedDegree
 
   // Move radius
-  state.player.distanceFromCenter_pc -= settings.player.degreeDecrease;
+  state.player.distanceFromCenter_pc -= config.player.degreeDecrease;
   if (state.keyPressed.space) {
-    state.player.distanceFromCenter_pc += settings.player.degreeIncrease;
+    state.player.distanceFromCenter_pc += config.player.degreeIncrease;
   }
 
   /// Center and field bounding
@@ -169,15 +169,15 @@ function updatePlayerPositionAndTurn(secondsPassed) {
 
 function getUpdatedPlayerAngle(secondsPassed, mode) {
   if (mode === 'SAME_VELOCITY') {
-    return (state.player.degree + ((settings.player.velocity * secondsPassed) / (state.player.distanceFromCenter_pc / 100))) % 360
+    return (state.player.degree + ((config.player.velocity * secondsPassed) / (state.player.distanceFromCenter_pc / 100))) % 360
   }
   else if (mode === 'SAME_D_ANGLE') {
-    return (state.player.degree + (settings.player.velocity * secondsPassed)) % 360
+    return (state.player.degree + (config.player.velocity * secondsPassed)) % 360
   }
 }
 
 function updateTrail(timeStamp) {
-  if (timeStamp - lastTrailTimeStamp > settings.trail.frequency * 1000) {
+  if (timeStamp - lastTrailTimeStamp > config.trail.frequency * 1000) {
     state.trail.push({
       distanceFromCenter_pc: state.player.distanceFromCenter_pc,
       degree: state.player.degree,
@@ -190,7 +190,7 @@ function updateTrail(timeStamp) {
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
   newTrails.forEach(tr => {
     const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
-    if (distance(playerX, playerY, trX, trY) > settings.player.radius * 2) {
+    if (distance(playerX, playerY, trX, trY) > config.player.radius * 2) {
       tr.status = 'OBSTACLE'
     }
   })
@@ -201,7 +201,7 @@ function updateTrailCollision() {
   const obstacles = state.trail.filter(tr => tr.status === 'OBSTACLE');
   obstacles.some(tr => {
     const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
-    if (distance(playerX, playerY, trX, trY) <= settings.player.radius * 2) {
+    if (distance(playerX, playerY, trX, trY) <= config.player.radius * 2) {
       state.collision = true;
       return true;
     }
@@ -210,10 +210,10 @@ function updateTrailCollision() {
 }
 
 function updateBomb(timeStamp) {
-  if (timeStamp - lastBombTimeStamp > settings.bomb.frequency * 1000) {
-    const fieldRadius = settings.field.radius_pc;
-    const centerRadius = settings.center.radius_pc;
-    const bombRadius = settings.bomb.radius / (canvas.width / 2);
+  if (timeStamp - lastBombTimeStamp > config.bomb.frequency * 1000) {
+    const fieldRadius = config.field.radius_pc;
+    const centerRadius = config.center.radius_pc;
+    const bombRadius = config.bomb.radius / (canvas.width / 2);
     const max = fieldRadius - bombRadius;
     const min = centerRadius + bombRadius
 
@@ -234,13 +234,13 @@ function updateBombCollision() {
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
   state.bombs.some(bomb => {
     const [bombX, bombY] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
-    if (distance(playerX, playerY, bombX, bombY) <= settings.player.radius + settings.bomb.radius) {
+    if (distance(playerX, playerY, bombX, bombY) <= config.player.radius + config.bomb.radius) {
       bomb.status = 'EXPLODED';
 
       //Destroy trails
       state.trail.forEach(tr => {
         const [trX, trY] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
-        if (distance(trX, trY, bombX, bombY) <= settings.bomb.explosionRadius) {
+        if (distance(trX, trY, bombX, bombY) <= config.bomb.explosionRadius) {
           tr.status = 'DESTROYED'
         }
       })
@@ -271,15 +271,15 @@ function draw() {
 
 function drawBackground() {
   const initialColor = getCurrentColor()
-  const color = tinycolor(initialColor).lighten(settings.center.darker).toHexString()
+  const color = tinycolor(initialColor).lighten(config.center.darker).toHexString()
 
-  context.fillStyle = color;
-  context.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
 
 function drawFieldCircle() {
   const [x, y] = getCenter()
-  const radius = percentCanvasToPixelSize(settings.field.radius_pc);
+  const radius = percentCanvasToPixelSize(config.field.radius_pc);
   const color = getCurrentColor()
 
   drawCircle(x, y, radius, color)
@@ -287,23 +287,23 @@ function drawFieldCircle() {
 
 function drawCenterCircle() {
   const [x, y] = getCenter()
-  const radius = percentCanvasToPixelSize(settings.center.radius_pc);
+  const radius = percentCanvasToPixelSize(config.center.radius_pc);
   const initialColor = getCurrentColor()
-  const color = tinycolor(initialColor).darken(settings.center.darker).toHexString()
+  const color = tinycolor(initialColor).darken(config.center.darker).toHexString()
 
   drawCircle(x, y, radius, color)
 
   //Draw text
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
-  context.font = '48px sans-serif';
-  context.fillStyle = 'white';
-  context.fillText(state.turn, x, y);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '48px sans-serif';
+  ctx.fillStyle = 'white';
+  ctx.fillText(state.turn, x, y);
 
 }
 
 function drawPlayer() {
-  const radius = settings.player.radius;
+  const radius = config.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
   const degree = state.player.degree;
   const initialColor = getCurrentColor()
@@ -317,7 +317,7 @@ function drawTrail() {
   const color = tinycolor(initialColor).lighten(20).toHexString()
   state.trail.forEach(tr => {
     const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
-    const radius = settings.player.radius;
+    const radius = config.player.radius;
     drawSquare(x, y, radius, tr.degree, color)
   })
 }
@@ -326,7 +326,7 @@ function drawBombs() {
   const color = 'white';
   state.bombs.forEach(bomb => {
     const [x, y] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
-    const radius = settings.bomb.radius;
+    const radius = config.bomb.radius;
     drawCircle(x, y, radius, color);
   })
 }
@@ -334,33 +334,33 @@ function drawBombs() {
 function drawSquare(x, y, radius, rotation, color) {
   const cornerRadius = 2;
 
-  context.save();
-  context.translate(x, y)
-  context.rotate(degreeToRadian(rotation))
+  ctx.save();
+  ctx.translate(x, y)
+  ctx.rotate(degreeToRadian(rotation))
 
-  context.beginPath();
+  ctx.beginPath();
   //  context.moveTo(cornerRadius, 0);
-  context.arcTo(radius, -radius, radius, radius, cornerRadius);
-  context.arcTo(radius, radius, -radius, radius, cornerRadius);
-  context.arcTo(-radius, radius, -radius, -radius, cornerRadius);
-  context.arcTo(-radius, -radius, radius, -radius, cornerRadius);
-  context.closePath();
-  context.fillStyle = color;
-  context.fill();
+  ctx.arcTo(radius, -radius, radius, radius, cornerRadius);
+  ctx.arcTo(radius, radius, -radius, radius, cornerRadius);
+  ctx.arcTo(-radius, radius, -radius, -radius, cornerRadius);
+  ctx.arcTo(-radius, -radius, radius, -radius, cornerRadius);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
 
-  context.restore();
+  ctx.restore();
 }
 
 function drawCircle(x, y, radius, color) {
-  context.beginPath();
-  context.arc(x, y, radius, 0, 2 * Math.PI, false);
-  context.fillStyle = color;
-  context.fill();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 function drawState() {
-  context.fillStyle = 'black'
-  context.font = '10px serif';
+  ctx.fillStyle = 'black'
+  ctx.font = '10px serif';
   const s = JSON.stringify(state, null, 2);
   document.getElementById('state').innerHTML = s
 }
@@ -378,11 +378,11 @@ function percentCanvasToPixelSize(percentFromCenter) {
 }
 
 function getLowestPlayerDistanceFromCenter_pc() {
-  return settings.center.radius_pc + (settings.player.radius / (canvas.width / 2) * 100)
+  return config.center.radius_pc + (config.player.radius / (canvas.width / 2) * 100)
 }
 
 function getHighestPlayerDistanceFromCenter_pc() {
-  return settings.field.radius_pc - (settings.player.radius / (canvas.width / 2) * 100)
+  return config.field.radius_pc - (config.player.radius / (canvas.width / 2) * 100)
 }
 
 
@@ -418,7 +418,7 @@ function radianToDegree(radian) {
 
 function getCurrentColor() {
   const initialColorName = state.initialColor;
-  const color = settings.colors.filter(c => c.name === initialColorName)[0];
+  const color = config.colors.filter(c => c.name === initialColorName)[0];
   return color.color;
 }
 
