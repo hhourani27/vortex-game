@@ -44,12 +44,13 @@ const config = {
     radius: 5,
     explosionRadius: 100
   },
-  maxTurn: 2
+  maxTurn: 1
 }
 
 const state = {
   status: 'INIT',
-  color: 'yellow',
+  color: '',
+  nextColor: '',
   turn: 1,
   player: {
     distanceFromCenter_pc: config.player.startingDistance_pc,
@@ -78,6 +79,7 @@ function init() {
   ctx = canvas.getContext('2d');
 
   setupEvents();
+  initColor();
 
   window.requestAnimationFrame(gameLoop);
 }
@@ -105,6 +107,12 @@ function setupEvents() {
         break;
     }
   });
+
+}
+
+function initColor() {
+  state.color = 'red'
+  state.nextColor = chooseColorExcluding('red');
 
 }
 
@@ -191,9 +199,8 @@ function getUpdatedPlayerAngle(secondsPassed, mode) {
 
 function updateColor() {
   if (state.turn > config.maxTurn) {
-    const availableColor = config.colors.filter(c => c.name != state.color);
-    const newColor = availableColor[Math.floor(Math.random() * availableColor.length)]
-    state.color = newColor.name;
+    state.color = state.nextColor;
+    state.nextColor = chooseColorExcluding(state.color);
 
     state.turn = 1;
   }
@@ -297,7 +304,7 @@ function draw() {
 }
 
 function drawBackground() {
-  const color = tinycolor(getColorValue(state.color)).lighten(config.center.darker).toHexString()
+  const color = tinycolor(getColorHexValue(state.color)).lighten(config.center.darker).toHexString()
 
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -306,7 +313,7 @@ function drawBackground() {
 function drawFieldCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.field.radius_pc);
-  const color = getColorValue(state.color)
+  const color = getColorHexValue(state.color)
 
   drawCircle(x, y, radius, color)
 }
@@ -314,7 +321,7 @@ function drawFieldCircle() {
 function drawCenterCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.center.radius_pc);
-  const color = tinycolor(getColorValue(state.color)).darken(config.center.darker).toHexString()
+  const color = tinycolor(getColorHexValue(state.color)).darken(config.center.darker).toHexString()
 
   drawCircle(x, y, radius, color)
 
@@ -322,7 +329,7 @@ function drawCenterCircle() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '48px sans-serif';
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = getColorHexValue(state.nextColor);
   ctx.fillText(state.turn, x, y);
 
 }
@@ -331,13 +338,13 @@ function drawPlayer() {
   const radius = config.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
   const degree = state.player.degree;
-  const color = tinycolor(getColorValue(state.color)).lighten(10).toHexString()
+  const color = tinycolor(getColorHexValue(state.color)).lighten(10).toHexString()
   drawSquare(playerX, playerY, radius, degree, color);
 
 }
 
 function drawTrail() {
-  const color = tinycolor(getColorValue(state.color)).lighten(20).toHexString()
+  const color = tinycolor(getColorHexValue(state.color)).lighten(20).toHexString()
 
   state.trail.forEach(tr => {
     const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
@@ -345,10 +352,10 @@ function drawTrail() {
 
     let color = null;
     if (tr.color === state.color) {
-      color = tinycolor(getColorValue(tr.color)).lighten(20).toHexString()
+      color = tinycolor(getColorHexValue(tr.color)).lighten(20).toHexString()
     }
     else {
-      color = tinycolor(getColorValue(tr.color)).lighten(10).desaturate(20).toHexString()
+      color = tinycolor(getColorHexValue(tr.color)).lighten(10).desaturate(20).toHexString()
     }
 
     drawSquare(x, y, radius, tr.degree, color)
@@ -449,9 +456,14 @@ function radianToDegree(radian) {
   return radian * 180 / Math.PI
 }
 
-function getColorValue(colorName) {
+function getColorHexValue(colorName) {
   const color = config.colors.filter(c => c.name === colorName)[0];
   return color.color;
+}
+
+function chooseColorExcluding(colorToExclude) {
+  const availableColor = config.colors.filter(c => c.name != colorToExclude);
+  return availableColor[Math.floor(Math.random() * availableColor.length)].name;
 }
 
 /* #endregion */
