@@ -65,9 +65,10 @@ const config = {
     frequency: 0.25,
   },
   bomb: {
-    frequency: 1,
+    frequency: 0.5,
     radius: 5,
-    explosionRadius: 100
+    explosionRadius: 100,
+    explosionDuration: 0.25
   },
   maxTurn: 1
 }
@@ -149,7 +150,7 @@ function gameLoop(timeStamp) {
   oldTimeStamp = timeStamp;
 
   update(secondsPassed, timeStamp);
-  draw();
+  draw(timeStamp);
   window.requestAnimationFrame(gameLoop);
 }
 
@@ -162,7 +163,7 @@ function update(secondsPassed, timeStamp) {
     updateTrail(timeStamp);
     updateTrailCollision();
     updateBomb(timeStamp);
-    updateBombCollision();
+    updateBombCollision(timeStamp);
   }
 }
 
@@ -282,20 +283,24 @@ function updateBomb(timeStamp) {
     state.bombs.push({
       distanceFromCenter_pc: bombDistance,
       degree: bombDegree,
-      state: 'NEW'
+      status: 'CHARGED'
     })
     lastBombTimeStamp = timeStamp
   }
 
 }
 
-function updateBombCollision() {
+function updateBombCollision(timeStamp) {
   // Detect bomb collisions
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree);
-  state.bombs.some(bomb => {
+  const chargedBombs = state.bombs.filter(b => b.status === 'CHARGED');
+
+  //Detect collision with bombs
+  chargedBombs.forEach(bomb => {
     const [bombX, bombY] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
     if (distance(playerX, playerY, bombX, bombY) <= config.player.radius + config.bomb.radius) {
       bomb.status = 'EXPLODED';
+      bomb.collisionTimestamp = timeStamp;
 
       //Destroy trails
       state.trail.forEach(tr => {
@@ -311,7 +316,11 @@ function updateBombCollision() {
   state.trail = state.trail.filter(tr => tr.status != 'DESTROYED');
 
   //Remove bomb
-  state.bombs = state.bombs.filter(bomb => bomb.status != 'EXPLODED');
+  state.bombs = state.bombs.filter(bomb => {
+    if (bomb.status === 'EXPLODED' && (timeStamp - bomb.collisionTimestamp) / 1000 > config.bomb.explosionDuration)
+      return false;
+    return true;
+  });
 }
 
 
@@ -319,12 +328,12 @@ function updateBombCollision() {
 
 /* #region DRAWING FUNCTIONS */
 
-function draw() {
+function draw(timeStamp) {
   drawBackground();
   drawFieldCircle();
   drawCenterCircle();
   drawTrail();
-  drawBombs();
+  drawBombs(timeStamp);
   drawPlayer();
   drawState();
 }
@@ -386,12 +395,24 @@ function drawTrail() {
   })
 }
 
-function drawBombs() {
+function drawBombs(timeStamp) {
   const color = 'white';
-  state.bombs.forEach(bomb => {
+
+  const chargedBombs = state.bombs.filter(b => b.status === 'CHARGED');
+  chargedBombs.forEach(bomb => {
     const [x, y] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
     const radius = config.bomb.radius;
     drawCircle(x, y, radius, color);
+  })
+
+  const explodedBombs = state.bombs.filter(b => b.status === 'EXPLODED');
+  explodedBombs.forEach(bomb => {
+    const [x, y] = polarPercentToCartesian(bomb.distanceFromCenter_pc, bomb.degree);
+    const durationSinceExplosion = (timeStamp - bomb.collisionTimestamp) / 1000
+    const explosionProgress = durationSinceExplosion / config.bomb.explosionDuration;
+    const explostionProgressEasing = Math.sin((explosionProgress * Math.PI) / 2)
+    const radius = config.bomb.explosionRadius * explostionProgressEasing;
+    drawCircle(x, y, radius, 'white', false)
   })
 }
 
@@ -415,11 +436,23 @@ function drawSquare(x, y, radius, rotation, color) {
   ctx.restore();
 }
 
-function drawCircle(x, y, radius, color) {
+function drawCircle(x, y, radius, color, fill = true) {
+
+  ctx.save();
+
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
-  ctx.fillStyle = color;
-  ctx.fill();
+  if (fill) {
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+  else {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  ctx.restore();
 }
 
 function drawState() {
