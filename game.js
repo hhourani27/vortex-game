@@ -6,25 +6,50 @@ const config = {
   colors: [
     {
       name: 'yellow',
-      color: '#FFBD71'
+      //      color: '#FFBD71',
+      background: '#FFE7A3',
+      field: '#F5D473',
+      center: '#B59026',
+      player: '#D3AF47',
+      trail: '#FFBA6B',
+      hiddenTrail: '#E7C092'
     },
     {
       name: 'red',
-      color: '#A43741'
+      //      color: '#A43741',
+      background: '#FDB9BF',
+      field: '#F96876',
+      center: '#E12436',
+      player: '#F74A5A',
+      trail: '#F96876',
+      hiddenTrail: '#E08D95'
     },
     {
       name: 'green',
-      color: '#328A2E'
+      //      color: '#328A2E',
+      background: '#91DD8D',
+      field: '#63C65D',
+      center: '#0F740A',
+      player: '#25921F',
+      trail: '#63DE5D',
+      hiddenTrail: '#79BB76'
     },
     {
       name: 'blue',
-      color: '#2D4571'
+      //      color: '#2D4571',
+      background: '#B5CAF0',
+      field: '#84A3DC',
+      center: '#254F9B',
+      player: '#3F65AC',
+      trail: '#5E82C5',
+      hiddenTrail: '#66789A'
     }
   ],
   center: {
     radius_pc: 20,
     darker: 25
   },
+  initialColor: 'yellow',
   field: {
     radius_pc: 90
   },
@@ -111,8 +136,9 @@ function setupEvents() {
 }
 
 function initColor() {
-  state.color = 'red'
-  state.nextColor = chooseColorExcluding('red');
+  state.color = config.initialColor
+  //  state.nextColor = chooseColorExcluding(state.color);
+  state.nextColor = 'blue';
 
 }
 
@@ -304,7 +330,7 @@ function draw() {
 }
 
 function drawBackground() {
-  const color = tinycolor(getColorHexValue(state.color)).lighten(config.center.darker).toHexString()
+  const color = getColorHexValue('background', state.color)
 
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -313,7 +339,7 @@ function drawBackground() {
 function drawFieldCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.field.radius_pc);
-  const color = getColorHexValue(state.color)
+  const color = getColorHexValue('field', state.color)
 
   drawCircle(x, y, radius, color)
 }
@@ -321,7 +347,7 @@ function drawFieldCircle() {
 function drawCenterCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.center.radius_pc);
-  const color = tinycolor(getColorHexValue(state.color)).darken(config.center.darker).toHexString()
+  const color = getColorHexValue('center', state.color)
 
   drawCircle(x, y, radius, color)
 
@@ -329,7 +355,7 @@ function drawCenterCircle() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '48px sans-serif';
-  ctx.fillStyle = getColorHexValue(state.nextColor);
+  ctx.fillStyle = getColorHexValue('center', state.nextColor);
   ctx.fillText(state.turn, x, y);
 
 }
@@ -338,24 +364,22 @@ function drawPlayer() {
   const radius = config.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
   const degree = state.player.degree;
-  const color = tinycolor(getColorHexValue(state.color)).lighten(10).toHexString()
+  const color = getColorHexValue('player', state.color)
   drawSquare(playerX, playerY, radius, degree, color);
 
 }
 
 function drawTrail() {
-  const color = tinycolor(getColorHexValue(state.color)).lighten(20).toHexString()
-
   state.trail.forEach(tr => {
     const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
     const radius = config.player.radius;
 
     let color = null;
     if (tr.color === state.color) {
-      color = tinycolor(getColorHexValue(tr.color)).lighten(20).toHexString()
+      color = getColorHexValue('trail', tr.color)
     }
     else {
-      color = tinycolor(getColorHexValue(tr.color)).lighten(10).desaturate(20).toHexString()
+      color = getColorHexValue('hiddenTrail', tr.color, getColorHexValue('field', state.color))
     }
 
     drawSquare(x, y, radius, tr.degree, color)
@@ -377,6 +401,7 @@ function drawSquare(x, y, radius, rotation, color) {
   ctx.save();
   ctx.translate(x, y)
   ctx.rotate(degreeToRadian(rotation))
+  ctx.fillStyle = color;
 
   ctx.beginPath();
   //  context.moveTo(cornerRadius, 0);
@@ -385,7 +410,6 @@ function drawSquare(x, y, radius, rotation, color) {
   ctx.arcTo(-radius, radius, -radius, -radius, cornerRadius);
   ctx.arcTo(-radius, -radius, radius, -radius, cornerRadius);
   ctx.closePath();
-  ctx.fillStyle = color;
   ctx.fill();
 
   ctx.restore();
@@ -456,9 +480,30 @@ function radianToDegree(radian) {
   return radian * 180 / Math.PI
 }
 
-function getColorHexValue(colorName) {
-  const color = config.colors.filter(c => c.name === colorName)[0];
-  return color.color;
+function getColorHexValue(appliedTo, colorName, overlayColor) {
+  if (appliedTo === 'trail') {
+    const playerColor = getColorHexValue('player', colorName);
+    const trailColor = tinycolor(playerColor).lighten(15).toHexString()
+    return trailColor;
+  }
+  else if (appliedTo === 'hiddenTrail') {
+    const trailColor = getColorHexValue('trail', colorName);
+
+    const trailColorRGB = tinycolor(trailColor).saturate(50).toRgb();
+    const overlayColorRGB = tinycolor(overlayColor).toRgb();
+
+    const opacity = 0.75
+    const hiddenTrailColorRGB = {};
+    hiddenTrailColorRGB.r = Math.floor(opacity * overlayColorRGB.r + (1 - opacity) * trailColorRGB.r);
+    hiddenTrailColorRGB.g = Math.floor(opacity * overlayColorRGB.g + (1 - opacity) * trailColorRGB.g);
+    hiddenTrailColorRGB.b = Math.floor(opacity * overlayColorRGB.b + (1 - opacity) * trailColorRGB.b);
+    return tinycolor(hiddenTrailColorRGB).toHexString();
+
+  }
+  else {
+    const color = config.colors.filter(c => c.name === colorName)[0];
+    return color[appliedTo];
+  }
 }
 
 function chooseColorExcluding(colorToExclude) {
