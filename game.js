@@ -54,7 +54,6 @@ const config = {
   },
   player: {
     startingDistance_pc: 50,
-    starting_degree: 0,
     radius: 10,
     velocity: 20,
     degreeIncrease: 0.5,
@@ -79,7 +78,7 @@ const state = {
   turn: 1,
   player: {
     distanceFromCenter_pc: config.player.startingDistance_pc,
-    degree: config.player.starting_degree,
+    degree: 0,
   },
   keyPressed: {
     space: false,
@@ -354,17 +353,16 @@ function drawFieldCircle() {
 
 function drawCenterCircle() {
   const [x, y] = getCenter()
-  const radius = percentCanvasToPixelSize(config.center.radius_pc);
-  const fillColor = getColorHexValue('center', state.color);
-  const strokeColor = getColorHexValue('centerBorder', state.color);
+  const centerRadius = percentCanvasToPixelSize(config.center.radius_pc);
+  const centerFillColor = getColorHexValue('center', state.color);
 
-  drawCircle(x, y, radius, fillColor)
+  drawCircle(x, y, centerRadius, centerFillColor)
 
   //Draw text
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '48px sans-serif';
-  ctx.fillStyle = getColorHexValue('center', state.nextColor);
+  ctx.font = '48px "Open Sans"';
+  ctx.fillStyle = getColorHexValue('trail', state.nextColor);
   ctx.fillText(state.turn, x, y);
 
 }
