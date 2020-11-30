@@ -6,42 +6,41 @@ const config = {
   colors: [
     {
       name: 'yellow',
-      //      color: '#FFBD71',
-      background: '#FFE7A3',
-      field: '#F5D473',
-      center: '#B59026',
-      player: '#D3AF47',
-      trail: '#FFBA6B',
+      background: '#FFF2CC',
+      fieldBorder: '#FFC000',
+      field: '#FFE699',
+      centerBorder: '#FFF2CC',
+      center: '#FFD966',
+      playerBorder: '#BF9000',
+      player: '#FFC000',
+      trailBorder: '#FFC305',
+      trail: '#FFD966',
       hiddenTrail: '#E7C092'
     },
     {
       name: 'red',
-      //      color: '#A43741',
-      background: '#FDB9BF',
-      field: '#F96876',
-      center: '#E12436',
-      player: '#F74A5A',
-      trail: '#F96876',
+      background: '#FFCECD',
+      fieldBorder: '#FF7875',
+      field: '#FF9B99',
+      centerBorder: '#FFE0DF',
+      center: '#FF7875',
+      playerBorder: '#E9100B',
+      player: '#F74F4B',
+      trailBorder: '#F86F6C',
+      trail: '#F9827F',
       hiddenTrail: '#E08D95'
     },
     {
-      name: 'green',
-      //      color: '#328A2E',
-      background: '#91DD8D',
-      field: '#63C65D',
-      center: '#0F740A',
-      player: '#25921F',
-      trail: '#63DE5D',
-      hiddenTrail: '#79BB76'
-    },
-    {
       name: 'blue',
-      //      color: '#2D4571',
-      background: '#B5CAF0',
-      field: '#84A3DC',
-      center: '#254F9B',
-      player: '#3F65AC',
-      trail: '#5E82C5',
+      background: '#DAE3F3',
+      fieldBorder: '#4472C4',
+      field: '#8FAADC',
+      centerBorder: '#DAE3F3',
+      center: '#4472C4',
+      playerBorder: '#2F5597',
+      player: '#4472C4',
+      trailBorder: '#5D85CD',
+      trail: '#658BCF',
       hiddenTrail: '#66789A'
     }
   ],
@@ -49,7 +48,7 @@ const config = {
     radius_pc: 20,
     darker: 25
   },
-  initialColor: 'yellow',
+  initialColor: 'blue',
   field: {
     radius_pc: 90
   },
@@ -65,12 +64,12 @@ const config = {
     frequency: 0.25,
   },
   bomb: {
-    frequency: 0.5,
+    frequency: 1,
     radius: 5,
     explosionRadius: 100,
     explosionDuration: 0.25
   },
-  maxTurn: 1
+  maxTurn: 2
 }
 
 const state = {
@@ -138,8 +137,7 @@ function setupEvents() {
 
 function initColor() {
   state.color = config.initialColor
-  //  state.nextColor = chooseColorExcluding(state.color);
-  state.nextColor = 'blue';
+  state.nextColor = chooseColorExcluding(state.color);
 
 }
 
@@ -348,17 +346,19 @@ function drawBackground() {
 function drawFieldCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.field.radius_pc);
-  const color = getColorHexValue('field', state.color)
+  const fillColor = getColorHexValue('field', state.color)
+  const strokeColor = getColorHexValue('fieldBorder', state.color);
 
-  drawCircle(x, y, radius, color)
+  drawCircle(x, y, radius, fillColor, strokeColor, 3)
 }
 
 function drawCenterCircle() {
   const [x, y] = getCenter()
   const radius = percentCanvasToPixelSize(config.center.radius_pc);
-  const color = getColorHexValue('center', state.color)
+  const fillColor = getColorHexValue('center', state.color);
+  const strokeColor = getColorHexValue('centerBorder', state.color);
 
-  drawCircle(x, y, radius, color)
+  drawCircle(x, y, radius, fillColor)
 
   //Draw text
   ctx.textAlign = 'center';
@@ -373,8 +373,9 @@ function drawPlayer() {
   const radius = config.player.radius;
   const [playerX, playerY] = polarPercentToCartesian(state.player.distanceFromCenter_pc, state.player.degree)
   const degree = state.player.degree;
-  const color = getColorHexValue('player', state.color)
-  drawSquare(playerX, playerY, radius, degree, color);
+  const fillColor = getColorHexValue('player', state.color);
+  const strokeColor = getColorHexValue('playerBorder', state.color);
+  drawSquare(playerX, playerY, radius, degree, fillColor, strokeColor);
 
 }
 
@@ -383,15 +384,17 @@ function drawTrail() {
     const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
     const radius = config.player.radius;
 
-    let color = null;
+    let fillColor = null;
+    let strokeColor = null;
     if (tr.color === state.color) {
-      color = getColorHexValue('trail', tr.color)
+      fillColor = getColorHexValue('trail', tr.color)
+      strokeColor = getColorHexValue('trailBorder', tr.color)
     }
     else {
-      color = getColorHexValue('hiddenTrail', tr.color, getColorHexValue('field', state.color))
+      fillColor = getColorHexValue('hiddenTrail', tr.color, getColorHexValue('field', state.color))
     }
 
-    drawSquare(x, y, radius, tr.degree, color)
+    drawSquare(x, y, radius, tr.degree, fillColor, strokeColor)
   })
 }
 
@@ -412,43 +415,51 @@ function drawBombs(timeStamp) {
     const explosionProgress = durationSinceExplosion / config.bomb.explosionDuration;
     const explostionProgressEasing = Math.sin((explosionProgress * Math.PI) / 2)
     const radius = config.bomb.explosionRadius * explostionProgressEasing;
-    drawCircle(x, y, radius, 'white', false)
+    drawCircle(x, y, radius, null, 'white', 2)
   })
 }
 
-function drawSquare(x, y, radius, rotation, color) {
+function drawSquare(x, y, radius, rotation, fillColor, strokeColor) {
   const cornerRadius = 2;
 
   ctx.save();
+
   ctx.translate(x, y)
   ctx.rotate(degreeToRadian(rotation))
-  ctx.fillStyle = color;
 
   ctx.beginPath();
-  //  context.moveTo(cornerRadius, 0);
   ctx.arcTo(radius, -radius, radius, radius, cornerRadius);
   ctx.arcTo(radius, radius, -radius, radius, cornerRadius);
   ctx.arcTo(-radius, radius, -radius, -radius, cornerRadius);
   ctx.arcTo(-radius, -radius, radius, -radius, cornerRadius);
   ctx.closePath();
-  ctx.fill();
+
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  }
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
 
   ctx.restore();
 }
 
-function drawCircle(x, y, radius, color, fill = true) {
+function drawCircle(x, y, radius, fillColor, strokeColor, lineWidth) {
 
   ctx.save();
 
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
-  if (fill) {
-    ctx.fillStyle = color;
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
     ctx.fill();
   }
-  else {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth;
     ctx.stroke();
   }
 
@@ -514,13 +525,8 @@ function radianToDegree(radian) {
 }
 
 function getColorHexValue(appliedTo, colorName, overlayColor) {
-  if (appliedTo === 'trail') {
-    const playerColor = getColorHexValue('player', colorName);
-    const trailColor = tinycolor(playerColor).lighten(15).toHexString()
-    return trailColor;
-  }
-  else if (appliedTo === 'hiddenTrail') {
-    const trailColor = getColorHexValue('trail', colorName);
+  if (appliedTo === 'hiddenTrail') {
+    const trailColor = getColorHexValue('player', colorName);
 
     const trailColorRGB = tinycolor(trailColor).saturate(50).toRgb();
     const overlayColorRGB = tinycolor(overlayColor).toRgb();
