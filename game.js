@@ -380,22 +380,25 @@ function drawPlayer() {
 }
 
 function drawTrail() {
-  state.trail.forEach(tr => {
-    const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
-    const radius = config.player.radius;
+  const radius = config.player.radius;
 
-    let fillColor = null;
-    let strokeColor = null;
-    if (tr.color === state.color) {
-      fillColor = getColorHexValue('trail', tr.color)
-      strokeColor = getColorHexValue('trailBorder', tr.color)
-    }
-    else {
-      fillColor = getColorHexValue('hiddenTrail', tr.color, getColorHexValue('field', state.color))
-    }
+  const hiddenTrail = state.trail.filter(tr => tr.color != state.color);
+  hiddenTrail.forEach(tr => {
+    const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
+    const fillColor = getColorHexValue('hiddenTrail', tr.color, getColorHexValue('field', state.color))
+
+    drawSquare(x, y, radius, tr.degree, fillColor)
+  })
+
+  const obstacleTrail = state.trail.filter(tr => tr.color === state.color);
+  obstacleTrail.forEach(tr => {
+    const [x, y] = polarPercentToCartesian(tr.distanceFromCenter_pc, tr.degree);
+    const fillColor = getColorHexValue('trail', tr.color);
+    const strokeColor = getColorHexValue('trailBorder', tr.color);
 
     drawSquare(x, y, radius, tr.degree, fillColor, strokeColor)
   })
+
 }
 
 function drawBombs(timeStamp) {
