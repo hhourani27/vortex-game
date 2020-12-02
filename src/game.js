@@ -57,20 +57,20 @@ const config = {
   player: {
     startingDistance_pc: 50,
     radius: 10,
-    velocity: 20,
+    velocity: 15,
     degreeIncrease: 0.6,
     degreeDecrease: 0.3
   },
   trail: {
-    frequency: 0.25,
+    frequency: 0.35,
   },
   bomb: {
-    frequency: 1,
+    frequency: 3,
     radius: 5,
     explosionRadius: 100,
     explosionDuration: 0.25
   },
-  maxTurn: 2
+  maxTurn: 3
 }
 
 const state = {
@@ -352,7 +352,7 @@ function updateBombCollision(timeStamp) {
 
 function draw(timeStamp) {
   drawBackground();
-  drawScore();
+  drawHeader();
   drawFieldCircle();
   drawCenterCircle();
   drawTrail();
@@ -368,15 +368,36 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
 
-function drawScore() {
+function drawHeader() {
 
-  const scoreText = 'Score : ' + state.score;
-
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.font = '400 20px "Open Sans"';
   ctx.fillStyle = getColorHexValue('player', state.color);
+  ctx.textBaseline = 'middle';
+  // Draw Score
+  ctx.font = '400 20px "Open Sans"';
+  ctx.textAlign = 'left';
+  const scoreText = 'Score : ' + state.score;
   ctx.fillText(scoreText, 10, 30);
+
+  // Draw command text
+  ctx.font = '400 15px "Open Sans"';
+  ctx.textAlign = 'right';
+
+  let commandText = '';
+  switch (state.status) {
+    case 'INIT':
+      commandText = 'Press Space to start';
+      break;
+    case 'RUN':
+      commandText = 'Press P to pause';
+      break;
+    case 'PAUSE':
+      commandText = 'Press Space to run';
+      break;
+    case 'LOST':
+      commandText = 'Press Space to restart';
+      break;
+  }
+  ctx.fillText(commandText, canvas.width - 10, 30);
 }
 
 function drawFieldCircle() {
