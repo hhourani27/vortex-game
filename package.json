@@ -1,0 +1,7 @@
+{
+  "name": "vortex-game",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "copyfiles -u 1 src/* dist"
+  }
+}
