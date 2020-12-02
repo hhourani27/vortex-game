@@ -48,7 +48,7 @@ const config = {
     radius_pc: 20,
     darker: 25
   },
-  initialColor: 'blue',
+  initialColor: 'yellow',
   field: {
     radius_pc: 90
   },
@@ -56,7 +56,7 @@ const config = {
     startingDistance_pc: 50,
     radius: 10,
     velocity: 20,
-    degreeIncrease: 0.5,
+    degreeIncrease: 0.6,
     degreeDecrease: 0.3
   },
   trail: {
@@ -73,6 +73,7 @@ const config = {
 
 const state = {
   status: 'INIT',
+  score: 1,
   color: '',
   nextColor: '',
   turn: 1,
@@ -89,9 +90,14 @@ const state = {
   trail: [],
 }
 
-let secondsPassed = 0;
-let oldTimeStamp = 0;
-let lastTrailTimeStamp = 0;
+// Timing variables
+let lastLoopTimeStamp = 0;
+
+// time passed while the game is running
+let gameTimeStamp = 0;
+let lastGameTimeStamp = 0;
+
+let lastTrailTimeStamp = -1000;
 let lastBombTimeStamp = 0;
 
 
@@ -141,30 +147,42 @@ function initColor() {
 }
 
 function gameLoop(timeStamp) {
-
   // Calculate how much time has passed
-  secondsPassed = (timeStamp - oldTimeStamp) / 1000;
-  oldTimeStamp = timeStamp;
+  const timePassedSinceLastLoop = (timeStamp - lastLoopTimeStamp);
+  lastLoopTimeStamp = timeStamp;
 
-  update(secondsPassed, timeStamp);
-  draw(timeStamp);
+  const gameTimeStamp = updateGameTimeStamp(timePassedSinceLastLoop);
+  const timePassedSinceLastGameLoop = gameTimeStamp - lastGameTimeStamp
+  lastGameTimeStamp = gameTimeStamp;
+
+  update(timePassedSinceLastGameLoop, gameTimeStamp);
+  draw(gameTimeStamp);
   window.requestAnimationFrame(gameLoop);
 }
 
-/* #region UPDATE FUNCTIONS */
-function update(secondsPassed, timeStamp) {
-  updateStatus();
+function updateGameTimeStamp(timePassedSinceLastLoop) {
   if (state.status === 'RUN') {
-    updatePlayerPositionAndTurn(secondsPassed);
+    gameTimeStamp += timePassedSinceLastLoop
+  }
+  return gameTimeStamp;
+}
+
+/* #region UPDATE FUNCTIONS */
+function update(timePassedSinceLastGameLoop, timeStamp) {
+  updateStatus(timeStamp);
+  if (state.status === 'RUN') {
+    updateScore(gameTimeStamp);
+    updatePlayerPositionAndTurn(timePassedSinceLastGameLoop);
     updateColor();
-    updateTrail(timeStamp);
+    updateTrail(gameTimeStamp);
     updateTrailCollision();
-    updateBomb(timeStamp);
-    updateBombCollision(timeStamp);
+    updateBomb(gameTimeStamp);
+    updateBombCollision(gameTimeStamp);
   }
 }
 
-function updateStatus() {
+
+function updateStatus(timeStamp) {
   if (state.status === 'INIT') {
     if (state.keyPressed.space) {
       state.status = 'RUN'
@@ -190,7 +208,12 @@ function updateStatus() {
   }
 }
 
-function updatePlayerPositionAndTurn(secondsPassed) {
+function updateScore(gameTimeStamp) {
+  state.score = Math.floor(gameTimeStamp * 1.25 / 1000) + 1;
+}
+
+function updatePlayerPositionAndTurn(timePassedSinceLastLoop) {
+  const secondsPassed = timePassedSinceLastLoop / 1000
   // Move angle and update turn
   const updatedDegree = getUpdatedPlayerAngle(secondsPassed, 'SAME_VELOCITY')
   if (state.player.degree > updatedDegree)
@@ -327,6 +350,7 @@ function updateBombCollision(timeStamp) {
 
 function draw(timeStamp) {
   drawBackground();
+  drawScore();
   drawFieldCircle();
   drawCenterCircle();
   drawTrail();
@@ -340,6 +364,17 @@ function drawBackground() {
 
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+}
+
+function drawScore() {
+
+  const scoreText = 'Score : ' + state.score;
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '400 20px "Open Sans"';
+  ctx.fillStyle = getColorHexValue('player', state.color);
+  ctx.fillText(scoreText, 10, 30);
 }
 
 function drawFieldCircle() {
@@ -361,7 +396,7 @@ function drawCenterCircle() {
   //Draw text
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '48px "Open Sans"';
+  ctx.font = '400 60px "Open Sans"';
   ctx.fillStyle = getColorHexValue('trail', state.nextColor);
   ctx.fillText(state.turn, x, y);
 
@@ -470,7 +505,8 @@ function drawCircle(x, y, radius, fillColor, strokeColor, lineWidth) {
 function drawState() {
   ctx.fillStyle = 'black'
   ctx.font = '10px serif';
-  const s = JSON.stringify(state, null, 2);
+  const stateToPrint = JSON.stringify(state, null, 2);
+  const s = stateToPrint
   document.getElementById('state').innerHTML = s
 }
 
