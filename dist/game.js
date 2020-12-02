@@ -1,4 +1,6 @@
 "use strict";
+const debug = false;
+
 let canvas;
 let ctx;
 
@@ -356,7 +358,7 @@ function draw(timeStamp) {
   drawTrail();
   drawBombs(timeStamp);
   drawPlayer();
-  drawState();
+  if (debug) drawState();
 }
 
 function drawBackground() {
