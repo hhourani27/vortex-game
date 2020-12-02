@@ -1,0 +1,13 @@
+#canvas {
+  padding: 0;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid lightgrey;
+}
+
+#state {
+  position: fixed;
+  font-size: 10px;
+  height: 700px;
+  overflow: auto;
+}
