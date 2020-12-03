@@ -80,7 +80,7 @@ const config = {
     explosionDuration: 0.25
   },
   initialColor: 'green',
-  maxTurn: 1
+  maxTurn: 3
 }
 
 const stateInit = {
@@ -157,6 +157,15 @@ function initState() {
   state = JSON.parse(JSON.stringify(stateInit));
   state.color = config.initialColor
   state.nextColor = chooseColorExcluding(state.color);
+
+}
+
+function getHighScore() {
+  return window.localStorage.getItem('highScore');
+}
+
+function setHighScore(score) {
+  window.localStorage.setItem('highScore', score);
 }
 
 function gameLoop(timeStamp) {
@@ -208,6 +217,10 @@ function updateStatus() {
     }
     if (state.collision) {
       state.status = 'LOST';
+      if (getHighScore())
+        setHighScore(Math.max(state.score, getHighScore()));
+      else
+        setHighScore(state.score)
     }
   }
   else if (state.status === 'PAUSE') {
@@ -403,6 +416,12 @@ function drawHeader() {
   const scoreText = 'Score : ' + state.score;
   ctx.fillText(scoreText, 10, 30);
 
+  // Draw Highscore
+  if (getHighScore()) {
+    ctx.font = '400 16px "Open Sans"';
+    const highScoreText = '👑 ' + getHighScore();
+    ctx.fillText(highScoreText, 10, 60)
+  }
   // Draw command text
   ctx.font = '400 15px "Open Sans"';
   ctx.textAlign = 'right';
