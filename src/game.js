@@ -387,6 +387,7 @@ function draw(timeStamp) {
 function drawBackground() {
   const color = getColorHexValue('background', state.color)
 
+  document.body.style.backgroundColor = color;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
