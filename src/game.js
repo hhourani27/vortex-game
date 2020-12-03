@@ -86,6 +86,7 @@ const config = {
 const stateInit = {
   status: 'INIT',
   score: 1,
+  highScore: null,
   color: '',
   nextColor: '',
   turn: 1,
@@ -158,6 +159,9 @@ function initState() {
   state.color = config.initialColor
   state.nextColor = chooseColorExcluding(state.color);
 
+  if (getHighScore())
+    state.highScore = getHighScore();
+
 }
 
 function getHighScore() {
@@ -217,8 +221,8 @@ function updateStatus() {
     }
     if (state.collision) {
       state.status = 'LOST';
-      if (getHighScore())
-        setHighScore(Math.max(state.score, getHighScore()));
+      if (state.highScore)
+        setHighScore(Math.max(state.score, state.highScore));
       else
         setHighScore(state.score)
     }
@@ -417,9 +421,9 @@ function drawHeader() {
   ctx.fillText(scoreText, 10, 30);
 
   // Draw Highscore
-  if (getHighScore()) {
+  if (state.highScore) {
     ctx.font = '400 16px "Open Sans"';
-    const highScoreText = '👑 ' + getHighScore();
+    const highScoreText = '👑 ' + state.highScore;
     ctx.fillText(highScoreText, 10, 60)
   }
   // Draw command text
