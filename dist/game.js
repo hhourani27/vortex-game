@@ -57,23 +57,23 @@ const config = {
   player: {
     startingDistance_pc: 50,
     radius: 10,
-    velocity: 20,
+    velocity: 15,
     degreeIncrease: 0.6,
     degreeDecrease: 0.3
   },
   trail: {
-    frequency: 0.25,
+    frequency: 0.35,
   },
   bomb: {
-    frequency: 1,
+    frequency: 3,
     radius: 5,
     explosionRadius: 100,
     explosionDuration: 0.25
   },
-  maxTurn: 2
+  maxTurn: 3
 }
 
-const state = {
+const stateInit = {
   status: 'INIT',
   score: 1,
   color: '',
@@ -88,19 +88,20 @@ const state = {
     p: false
   },
   collision: false,
+  timing: {
+    gameTimeStamp: 0,
+    lastGameTimeStamp: 0,
+    lastTrailTimeStamp: -1000,
+    lastBombTimeStamp: 0
+  },
   bombs: [],
   trail: [],
 }
 
+let state = {};
+
 // Timing variables
 let lastLoopTimeStamp = 0;
-
-// time passed while the game is running
-let gameTimeStamp = 0;
-let lastGameTimeStamp = 0;
-
-let lastTrailTimeStamp = -1000;
-let lastBombTimeStamp = 0;
 
 
 window.onload = init;
@@ -111,7 +112,7 @@ function init() {
   ctx = canvas.getContext('2d');
 
   setupEvents();
-  initColor();
+  initState();
 
   window.requestAnimationFrame(gameLoop);
 }
@@ -142,10 +143,10 @@ function setupEvents() {
 
 }
 
-function initColor() {
+function initState() {
+  state = JSON.parse(JSON.stringify(stateInit));
   state.color = config.initialColor
   state.nextColor = chooseColorExcluding(state.color);
-
 }
 
 function gameLoop(timeStamp) {
@@ -154,8 +155,8 @@ function gameLoop(timeStamp) {
   lastLoopTimeStamp = timeStamp;
 
   const gameTimeStamp = updateGameTimeStamp(timePassedSinceLastLoop);
-  const timePassedSinceLastGameLoop = gameTimeStamp - lastGameTimeStamp
-  lastGameTimeStamp = gameTimeStamp;
+  const timePassedSinceLastGameLoop = gameTimeStamp - state.timing.lastGameTimeStamp
+  state.timing.lastGameTimeStamp = gameTimeStamp;
 
   update(timePassedSinceLastGameLoop, gameTimeStamp);
   draw(gameTimeStamp);
@@ -164,14 +165,13 @@ function gameLoop(timeStamp) {
 
 function updateGameTimeStamp(timePassedSinceLastLoop) {
   if (state.status === 'RUN') {
-    gameTimeStamp += timePassedSinceLastLoop
+    state.timing.gameTimeStamp += timePassedSinceLastLoop
   }
-  return gameTimeStamp;
+  return state.timing.gameTimeStamp;
 }
 
 /* #region UPDATE FUNCTIONS */
-function update(timePassedSinceLastGameLoop, timeStamp) {
-  updateStatus(timeStamp);
+function update(timePassedSinceLastGameLoop, gameTimeStamp) {
   if (state.status === 'RUN') {
     updateScore(gameTimeStamp);
     updatePlayerPositionAndTurn(timePassedSinceLastGameLoop);
@@ -181,10 +181,11 @@ function update(timePassedSinceLastGameLoop, timeStamp) {
     updateBomb(gameTimeStamp);
     updateBombCollision(gameTimeStamp);
   }
+  updateStatus();
 }
 
 
-function updateStatus(timeStamp) {
+function updateStatus() {
   if (state.status === 'INIT') {
     if (state.keyPressed.space) {
       state.status = 'RUN'
@@ -206,6 +207,18 @@ function updateStatus(timeStamp) {
     }
     else if (state.keyPressed.space) {
       state.status = 'RUN';
+    }
+  }
+  else if (state.status === 'LOST') {
+    if (!state.keyPressed.space) {
+      state.status = 'LOST_CAN_RESTART';
+    }
+  }
+  else if (state.status === 'LOST_CAN_RESTART') {
+    if (state.keyPressed.space) {
+      initState();
+      state.status = 'RUN';
+      state.keyPressed.p = false;
     }
   }
 }
@@ -257,14 +270,14 @@ function updateColor() {
 
 function updateTrail(timeStamp) {
   // Create a new Trail if the player moved enough distance
-  if (timeStamp - lastTrailTimeStamp > config.trail.frequency * 1000) {
+  if (timeStamp - state.timing.lastTrailTimeStamp > config.trail.frequency * 1000) {
     state.trail.push({
       distanceFromCenter_pc: state.player.distanceFromCenter_pc,
       degree: state.player.degree,
       color: state.color,
       status: 'NEW'
     })
-    lastTrailTimeStamp = timeStamp
+    state.timing.lastTrailTimeStamp = timeStamp
   }
 
   // When a player got far enough of a new Trail, it becomes an obstacle
@@ -293,21 +306,22 @@ function updateTrailCollision() {
 }
 
 function updateBomb(timeStamp) {
-  if (timeStamp - lastBombTimeStamp > config.bomb.frequency * 1000) {
+  if (timeStamp - state.timing.lastBombTimeStamp > config.bomb.frequency * 1000) {
     const fieldRadius = config.field.radius_pc;
     const centerRadius = config.center.radius_pc;
-    const bombRadius = config.bomb.radius / (canvas.width / 2);
+    const bombRadius = config.bomb.radius / (canvas.width / 2) * 100;
     const max = fieldRadius - bombRadius;
     const min = centerRadius + bombRadius
 
     const bombDistance = Math.random() * (max - min) + min
     const bombDegree = Math.random() * 360
+
     state.bombs.push({
       distanceFromCenter_pc: bombDistance,
       degree: bombDegree,
       status: 'CHARGED'
     })
-    lastBombTimeStamp = timeStamp
+    state.timing.lastBombTimeStamp = timeStamp
   }
 
 }
@@ -352,7 +366,7 @@ function updateBombCollision(timeStamp) {
 
 function draw(timeStamp) {
   drawBackground();
-  drawScore();
+  drawHeader();
   drawFieldCircle();
   drawCenterCircle();
   drawTrail();
@@ -368,15 +382,37 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
 
-function drawScore() {
+function drawHeader() {
 
-  const scoreText = 'Score : ' + state.score;
-
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.font = '400 20px "Open Sans"';
   ctx.fillStyle = getColorHexValue('player', state.color);
+  ctx.textBaseline = 'middle';
+  // Draw Score
+  ctx.font = '400 20px "Open Sans"';
+  ctx.textAlign = 'left';
+  const scoreText = 'Score : ' + state.score;
   ctx.fillText(scoreText, 10, 30);
+
+  // Draw command text
+  ctx.font = '400 15px "Open Sans"';
+  ctx.textAlign = 'right';
+
+  let commandText = '';
+  switch (state.status) {
+    case 'INIT':
+      commandText = 'Press Space to start';
+      break;
+    case 'RUN':
+      commandText = 'Press P to pause';
+      break;
+    case 'PAUSE':
+      commandText = 'Press Space to run';
+      break;
+    case 'LOST':
+    case 'LOST_CAN_RESTART':
+      commandText = 'Press Space to restart';
+      break;
+  }
+  ctx.fillText(commandText, canvas.width - 10, 30);
 }
 
 function drawFieldCircle() {
