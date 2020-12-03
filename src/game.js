@@ -309,12 +309,13 @@ function updateBomb(timeStamp) {
   if (timeStamp - state.timing.lastBombTimeStamp > config.bomb.frequency * 1000) {
     const fieldRadius = config.field.radius_pc;
     const centerRadius = config.center.radius_pc;
-    const bombRadius = config.bomb.radius / (canvas.width / 2);
+    const bombRadius = config.bomb.radius / (canvas.width / 2) * 100;
     const max = fieldRadius - bombRadius;
     const min = centerRadius + bombRadius
 
     const bombDistance = Math.random() * (max - min) + min
     const bombDegree = Math.random() * 360
+
     state.bombs.push({
       distanceFromCenter_pc: bombDistance,
       degree: bombDegree,
