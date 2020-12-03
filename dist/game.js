@@ -17,7 +17,6 @@ const config = {
       player: '#FFC000',
       trailBorder: '#FFC305',
       trail: '#FFD966',
-      hiddenTrail: '#E7C092'
     },
     {
       name: 'red',
@@ -30,7 +29,6 @@ const config = {
       player: '#F74F4B',
       trailBorder: '#F86F6C',
       trail: '#F9827F',
-      hiddenTrail: '#E08D95'
     },
     {
       name: 'blue',
@@ -41,18 +39,29 @@ const config = {
       center: '#4472C4',
       playerBorder: '#2F5597',
       player: '#4472C4',
-      trailBorder: '#5D85CD',
+      trailBorder: '#5780CB',
       trail: '#658BCF',
-      hiddenTrail: '#66789A'
+    },
+    {
+      name: 'green',
+      background: '#E2F0D9',
+      fieldBorder: '#70AD47',
+      field: '#A9D18E',
+      centerBorder: '#E2F0D9',
+      center: '#70AD47',
+      playerBorder: '#548235',
+      player: '#75B44A',
+      trailBorder: '#78B64E',
+      trail: '#91C36F',
     }
   ],
+  field: {
+    radius_pc: 90,
+    borderWidth: 3,
+  },
   center: {
     radius_pc: 20,
     darker: 25
-  },
-  initialColor: 'yellow',
-  field: {
-    radius_pc: 90
   },
   player: {
     startingDistance_pc: 50,
@@ -70,6 +79,7 @@ const config = {
     explosionRadius: 100,
     explosionDuration: 0.25
   },
+  initialColor: 'green',
   maxTurn: 3
 }
 
@@ -147,6 +157,15 @@ function initState() {
   state = JSON.parse(JSON.stringify(stateInit));
   state.color = config.initialColor
   state.nextColor = chooseColorExcluding(state.color);
+
+}
+
+function getHighScore() {
+  return window.localStorage.getItem('highScore');
+}
+
+function setHighScore(score) {
+  window.localStorage.setItem('highScore', score);
 }
 
 function gameLoop(timeStamp) {
@@ -198,6 +217,10 @@ function updateStatus() {
     }
     if (state.collision) {
       state.status = 'LOST';
+      if (getHighScore())
+        setHighScore(Math.max(state.score, getHighScore()));
+      else
+        setHighScore(state.score)
     }
   }
   else if (state.status === 'PAUSE') {
@@ -378,6 +401,7 @@ function draw(timeStamp) {
 function drawBackground() {
   const color = getColorHexValue('background', state.color)
 
+  document.body.style.backgroundColor = color;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
@@ -392,6 +416,12 @@ function drawHeader() {
   const scoreText = 'Score : ' + state.score;
   ctx.fillText(scoreText, 10, 30);
 
+  // Draw Highscore
+  if (getHighScore()) {
+    ctx.font = '400 16px "Open Sans"';
+    const highScoreText = '👑 ' + getHighScore();
+    ctx.fillText(highScoreText, 10, 60)
+  }
   // Draw command text
   ctx.font = '400 15px "Open Sans"';
   ctx.textAlign = 'right';
@@ -421,7 +451,7 @@ function drawFieldCircle() {
   const fillColor = getColorHexValue('field', state.color)
   const strokeColor = getColorHexValue('fieldBorder', state.color);
 
-  drawCircle(x, y, radius, fillColor, strokeColor, 3)
+  drawCircle(x, y, radius, fillColor, strokeColor, config.field.borderWidth)
 }
 
 function drawCenterCircle() {
@@ -436,7 +466,8 @@ function drawCenterCircle() {
   ctx.textBaseline = 'middle';
   ctx.font = '400 60px "Open Sans"';
   ctx.fillStyle = getColorHexValue('trail', state.nextColor);
-  ctx.fillText(state.turn, x, y);
+  const remainingTurn = config.maxTurn - state.turn + 1
+  ctx.fillText(remainingTurn, x, y);
 
 }
 
@@ -565,7 +596,10 @@ function getLowestPlayerDistanceFromCenter_pc() {
 }
 
 function getHighestPlayerDistanceFromCenter_pc() {
-  return config.field.radius_pc - (config.player.radius / (canvas.width / 2) * 100)
+  const fieldWidth_pc = config.field.borderWidth / (canvas.width / 2) * 100
+  const player_radius_pc = config.player.radius / (canvas.width / 2) * 100
+  return config.field.radius_pc - fieldWidth_pc - player_radius_pc;
+
 }
 
 
@@ -606,7 +640,7 @@ function getColorHexValue(appliedTo, colorName, overlayColor) {
     const trailColorRGB = tinycolor(trailColor).saturate(50).toRgb();
     const overlayColorRGB = tinycolor(overlayColor).toRgb();
 
-    const opacity = 0.75
+    const opacity = 0.80
     const hiddenTrailColorRGB = {};
     hiddenTrailColorRGB.r = Math.floor(opacity * overlayColorRGB.r + (1 - opacity) * trailColorRGB.r);
     hiddenTrailColorRGB.g = Math.floor(opacity * overlayColorRGB.g + (1 - opacity) * trailColorRGB.g);
