@@ -86,6 +86,7 @@ const config = {
 const stateInit = {
   status: 'INIT',
   score: 1,
+  highScore: null,
   color: '',
   nextColor: '',
   turn: 1,
@@ -128,6 +129,11 @@ function init() {
 }
 
 function setupEvents() {
+  //Prevent space from scrolling
+  window.addEventListener('keydown', function (event) {
+    if (event.key === ' ') event.preventDefault();
+  })
+
   document.addEventListener('keydown', function (event) {
     switch (event.key) {
       case ' ':
@@ -157,6 +163,9 @@ function initState() {
   state = JSON.parse(JSON.stringify(stateInit));
   state.color = config.initialColor
   state.nextColor = chooseColorExcluding(state.color);
+
+  if (getHighScore())
+    state.highScore = getHighScore();
 
 }
 
@@ -217,8 +226,8 @@ function updateStatus() {
     }
     if (state.collision) {
       state.status = 'LOST';
-      if (getHighScore())
-        setHighScore(Math.max(state.score, getHighScore()));
+      if (state.highScore)
+        setHighScore(Math.max(state.score, state.highScore));
       else
         setHighScore(state.score)
     }
@@ -388,7 +397,7 @@ function updateBombCollision(timeStamp) {
 /* #region DRAWING FUNCTIONS */
 
 function draw(timeStamp) {
-  drawBackground();
+  drawOutsideCanvas();
   drawHeader();
   drawFieldCircle();
   drawCenterCircle();
@@ -398,12 +407,15 @@ function draw(timeStamp) {
   if (debug) drawState();
 }
 
-function drawBackground() {
-  const color = getColorHexValue('background', state.color)
+function drawOutsideCanvas() {
+  const backgroundColor = getColorHexValue('background', state.color)
 
-  document.body.style.backgroundColor = color;
-  ctx.fillStyle = color;
+  document.body.style.backgroundColor = backgroundColor;
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  const textColor = getColorHexValue('player', state.color);
+  document.body.style.color = textColor;
 }
 
 function drawHeader() {
@@ -417,9 +429,9 @@ function drawHeader() {
   ctx.fillText(scoreText, 10, 30);
 
   // Draw Highscore
-  if (getHighScore()) {
+  if (state.highScore) {
     ctx.font = '400 16px "Open Sans"';
-    const highScoreText = '👑 ' + getHighScore();
+    const highScoreText = '👑 ' + state.highScore;
     ctx.fillText(highScoreText, 10, 60)
   }
   // Draw command text
