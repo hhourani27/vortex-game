@@ -55,13 +55,13 @@ const config = {
       trail: '#91C36F',
     }
   ],
+  field: {
+    radius_pc: 90,
+    borderWidth: 3,
+  },
   center: {
     radius_pc: 20,
     darker: 25
-  },
-  initialColor: 'green',
-  field: {
-    radius_pc: 90
   },
   player: {
     startingDistance_pc: 50,
@@ -79,7 +79,8 @@ const config = {
     explosionRadius: 100,
     explosionDuration: 0.25
   },
-  maxTurn: 3
+  initialColor: 'green',
+  maxTurn: 1
 }
 
 const stateInit = {
@@ -431,7 +432,7 @@ function drawFieldCircle() {
   const fillColor = getColorHexValue('field', state.color)
   const strokeColor = getColorHexValue('fieldBorder', state.color);
 
-  drawCircle(x, y, radius, fillColor, strokeColor, 3)
+  drawCircle(x, y, radius, fillColor, strokeColor, config.field.borderWidth)
 }
 
 function drawCenterCircle() {
@@ -576,7 +577,10 @@ function getLowestPlayerDistanceFromCenter_pc() {
 }
 
 function getHighestPlayerDistanceFromCenter_pc() {
-  return config.field.radius_pc - (config.player.radius / (canvas.width / 2) * 100)
+  const fieldWidth_pc = config.field.borderWidth / (canvas.width / 2) * 100
+  const player_radius_pc = config.player.radius / (canvas.width / 2) * 100
+  return config.field.radius_pc - fieldWidth_pc - player_radius_pc;
+
 }
 
 
