@@ -17,7 +17,6 @@ const config = {
       player: '#FFC000',
       trailBorder: '#FFC305',
       trail: '#FFD966',
-      hiddenTrail: '#E7C092'
     },
     {
       name: 'red',
@@ -30,7 +29,6 @@ const config = {
       player: '#F74F4B',
       trailBorder: '#F86F6C',
       trail: '#F9827F',
-      hiddenTrail: '#E08D95'
     },
     {
       name: 'blue',
@@ -41,16 +39,27 @@ const config = {
       center: '#4472C4',
       playerBorder: '#2F5597',
       player: '#4472C4',
-      trailBorder: '#5D85CD',
+      trailBorder: '#5780CB',
       trail: '#658BCF',
-      hiddenTrail: '#66789A'
+    },
+    {
+      name: 'green',
+      background: '#E2F0D9',
+      fieldBorder: '#70AD47',
+      field: '#A9D18E',
+      centerBorder: '#E2F0D9',
+      center: '#70AD47',
+      playerBorder: '#548235',
+      player: '#75B44A',
+      trailBorder: '#78B64E',
+      trail: '#91C36F',
     }
   ],
   center: {
     radius_pc: 20,
     darker: 25
   },
-  initialColor: 'yellow',
+  initialColor: 'green',
   field: {
     radius_pc: 90
   },
@@ -436,7 +445,8 @@ function drawCenterCircle() {
   ctx.textBaseline = 'middle';
   ctx.font = '400 60px "Open Sans"';
   ctx.fillStyle = getColorHexValue('trail', state.nextColor);
-  ctx.fillText(state.turn, x, y);
+  const remainingTurn = config.maxTurn - state.turn + 1
+  ctx.fillText(remainingTurn, x, y);
 
 }
 
@@ -606,7 +616,7 @@ function getColorHexValue(appliedTo, colorName, overlayColor) {
     const trailColorRGB = tinycolor(trailColor).saturate(50).toRgb();
     const overlayColorRGB = tinycolor(overlayColor).toRgb();
 
-    const opacity = 0.75
+    const opacity = 0.80
     const hiddenTrailColorRGB = {};
     hiddenTrailColorRGB.r = Math.floor(opacity * overlayColorRGB.r + (1 - opacity) * trailColorRGB.r);
     hiddenTrailColorRGB.g = Math.floor(opacity * overlayColorRGB.g + (1 - opacity) * trailColorRGB.g);
