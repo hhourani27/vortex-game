@@ -129,6 +129,11 @@ function init() {
 }
 
 function setupEvents() {
+  //Prevent space from scrolling
+  window.addEventListener('keydown', function (event) {
+    if (event.key === ' ') event.preventDefault();
+  })
+
   document.addEventListener('keydown', function (event) {
     switch (event.key) {
       case ' ':
@@ -392,7 +397,7 @@ function updateBombCollision(timeStamp) {
 /* #region DRAWING FUNCTIONS */
 
 function draw(timeStamp) {
-  drawBackground();
+  drawOutsideCanvas();
   drawHeader();
   drawFieldCircle();
   drawCenterCircle();
@@ -402,12 +407,15 @@ function draw(timeStamp) {
   if (debug) drawState();
 }
 
-function drawBackground() {
-  const color = getColorHexValue('background', state.color)
+function drawOutsideCanvas() {
+  const backgroundColor = getColorHexValue('background', state.color)
 
-  document.body.style.backgroundColor = color;
-  ctx.fillStyle = color;
+  document.body.style.backgroundColor = backgroundColor;
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  const textColor = getColorHexValue('player', state.color);
+  document.body.style.color = textColor;
 }
 
 function drawHeader() {
